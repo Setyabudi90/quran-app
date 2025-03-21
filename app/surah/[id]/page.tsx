@@ -5,9 +5,20 @@ import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, Play, Pause, ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  ChevronLeft,
+  Play,
+  Pause,
+  ArrowLeft,
+  ArrowRight,
+  Settings,
+} from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BackgroundMesh } from "@/components/background-mesh";
+import SurahHeader from "@/components/surah-header";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Ayat {
   id: number;
@@ -50,6 +61,9 @@ export default function SurahDetail() {
   const [surah, setSurah] = useState<SurahDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showHeader, setShowHeader] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -78,21 +92,57 @@ export default function SurahDetail() {
       if (audioRef.current) {
         audioRef.current.pause();
         setIsPlaying(false);
+        setCurrentTime(0);
       }
 
       audioRef.current = new Audio(surah.audio);
-      audioRef.current.addEventListener("ended", () => setIsPlaying(false));
+
+      const handleTimeUpdate = () => {
+        if (audioRef.current) {
+          setCurrentTime(audioRef.current.currentTime);
+        }
+      };
+
+      const handleLoadedMetadata = () => {
+        if (audioRef.current) {
+          setDuration(audioRef.current.duration);
+        }
+      };
+
+      const handleEnded = () => {
+        setIsPlaying(false);
+        setCurrentTime(0);
+      };
+
+      audioRef.current.addEventListener("timeupdate", handleTimeUpdate);
+      audioRef.current.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audioRef.current.addEventListener("ended", handleEnded);
 
       return () => {
         if (audioRef.current) {
           audioRef.current.pause();
-          audioRef.current.removeEventListener("ended", () =>
-            setIsPlaying(false)
+          audioRef.current.removeEventListener("timeupdate", handleTimeUpdate);
+          audioRef.current.removeEventListener(
+            "loadedmetadata",
+            handleLoadedMetadata
           );
+          audioRef.current.removeEventListener("ended", handleEnded);
         }
       };
     }
   }, [surah]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      setShowHeader(scrollPosition > 200);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -103,6 +153,13 @@ export default function SurahDetail() {
       audioRef.current.play();
     }
     setIsPlaying(!isPlaying);
+  };
+
+  const seekAudio = (value: number) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value;
+      setCurrentTime(value);
+    }
   };
 
   const goBack = () => {
@@ -121,10 +178,30 @@ export default function SurahDetail() {
     tr: string;
     idn: string;
   }
+  const formatTime = (time: number) => {
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = Math.floor(time % 60);
+
+    return `${hours > 0 ? hours + ":" : ""}${
+      hours > 0 ? String(minutes).padStart(2, "0") : minutes
+    }:${String(seconds).padStart(2, "0")}`;
+  };
 
   return (
     <>
-      <BackgroundMesh />
+      {surah && showHeader && (
+        <SurahHeader
+          surah={surah}
+          isPlaying={isPlaying}
+          currentTime={currentTime}
+          duration={duration}
+          onToggleAudio={toggleAudio}
+          onSeekAudio={seekAudio}
+          onGoBack={goBack}
+        />
+      )}
+
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-8">
@@ -209,8 +286,24 @@ export default function SurahDetail() {
                       )}
                     </Button>
                   </div>
+
+                  <div className="w-full space-y-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max={duration || 100}
+                      value={currentTime}
+                      onChange={(e) => seekAudio(Number(e.target.value))}
+                      className="w-full h-2 bg-primary/20 dark:bg-slate-200/30 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatTime(currentTime)}</span>
+                      <span>{formatTime(duration)}</span>
+                    </div>
+                  </div>
+
                   <div
-                    className="text-sm text-muted-foreground"
+                    className="text-sm text-muted-foreground mt-4"
                     dangerouslySetInnerHTML={{ __html: surah.deskripsi }}
                   />
                 </CardContent>

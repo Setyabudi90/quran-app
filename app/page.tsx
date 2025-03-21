@@ -1,11 +1,9 @@
 import SurahList from "@/components/surah-list";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BackgroundMesh } from "@/components/background-mesh";
 
 export default function Home() {
   return (
     <>
-      <BackgroundMesh />
       <main className="min-h-screen">
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-8">
