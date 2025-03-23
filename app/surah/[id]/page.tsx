@@ -17,6 +17,11 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import SurahHeader from "@/components/surah-header";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -55,6 +60,11 @@ interface SurahDetail {
   surat_sebelumnya: SurahNav | false;
 }
 
+interface DisplaySettings {
+  showTransliteration: boolean;
+  showTranslation: boolean;
+}
+
 export default function SurahDetail() {
   const params = useParams();
   const router = useRouter();
@@ -64,6 +74,10 @@ export default function SurahDetail() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showHeader, setShowHeader] = useState(false);
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({
+    showTransliteration: true,
+    showTranslation: true,
+  });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -188,6 +202,40 @@ export default function SurahDetail() {
     }:${String(seconds).padStart(2, "0")}`;
   };
 
+  useEffect(() => {
+    const savedSettings = localStorage.getItem("quranDisplaySettings");
+    if (savedSettings) {
+      try {
+        setDisplaySettings(JSON.parse(savedSettings));
+      } catch (e) {
+        console.error("Error parsing saved settings:", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "quranDisplaySettings",
+      JSON.stringify(displaySettings)
+    );
+  }, [displaySettings]);
+
+  const toggleSetting = (setting: keyof DisplaySettings) => {
+    console.log("Toggling setting:", setting);
+    setDisplaySettings((prev) => {
+      const newSettings = {
+        ...prev,
+        [setting]: !prev[setting],
+      };
+      localStorage.setItem("quranDisplaySettings", JSON.stringify(newSettings));
+      return newSettings;
+    });
+  };
+
+  const goToQiblaCompass = () => {
+    router.push("/kompas/kiblat");
+  };
+
   return (
     <>
       {surah && showHeader && (
@@ -199,6 +247,10 @@ export default function SurahDetail() {
           onToggleAudio={toggleAudio}
           onSeekAudio={seekAudio}
           onGoBack={goBack}
+          displaySettings={displaySettings}
+          onToggleSetting={(setting) =>
+            toggleSetting(setting as keyof DisplaySettings)
+          }
         />
       )}
 
@@ -218,7 +270,40 @@ export default function SurahDetail() {
                 BacaQur'an
               </h1>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="bg-background/20 backdrop-blur-sm border-primary/20 dark:border-white/30 hover:bg-background/30"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Pengaturan Tampilan</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuCheckboxItem
+                    checked={displaySettings.showTransliteration}
+                    onCheckedChange={() => toggleSetting("showTransliteration")}
+                  >
+                    Tampilkan Transliterasi
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem
+                    checked={displaySettings.showTranslation}
+                    onCheckedChange={() => toggleSetting("showTranslation")}
+                  >
+                    Tampilkan Terjemahan
+                  </DropdownMenuCheckboxItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={goToQiblaCompass}>
+                    Kompas Kiblat
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <ThemeToggle />
+            </div>
           </div>
 
           {loading ? (
@@ -324,14 +409,19 @@ export default function SurahDetail() {
                       <p className="text-right text-2xl font-arabic leading-loose mb-4">
                         {ayat.ar}
                       </p>
-                      <p
-                        className="text-sm text-muted-foreground italic mb-2"
-                        dangerouslySetInnerHTML={{ __html: ayat.tr }}
-                      />
-                      <p
-                        className="text-sm"
-                        dangerouslySetInnerHTML={{ __html: ayat.idn }}
-                      />
+                      {displaySettings.showTransliteration && (
+                        <p
+                          className="text-sm text-muted-foreground italic mb-2"
+                          dangerouslySetInnerHTML={{ __html: ayat.tr }}
+                        />
+                      )}
+
+                      {displaySettings.showTranslation && (
+                        <p
+                          className="text-sm"
+                          dangerouslySetInnerHTML={{ __html: ayat.idn }}
+                        />
+                      )}
                     </CardContent>
                   </Card>
                 ))}

@@ -4,8 +4,18 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { MapPin, Search, SortAsc } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { PrayerTimesModal } from "./prayer-times-modal";
 
 interface Surah {
   nomor: number;
@@ -17,11 +27,16 @@ interface Surah {
   audio: string;
 }
 
+type SortOption = "nomor" | "nama_latin" | "tempat_turun" | "jumlah_ayat";
+
 export default function SurahList() {
   const [surahs, setSurahs] = useState<Surah[]>([]);
   const [filteredSurahs, setFilteredSurahs] = useState<Surah[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("nomor");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [showPrayerTimes, setShowPrayerTimes] = useState(false);
 
   useEffect(() => {
     const fetchSurahs = async () => {
@@ -43,29 +58,118 @@ export default function SurahList() {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim() === "") {
-      setFilteredSurahs(surahs);
-    } else {
-      const filtered = surahs.filter(
+    if (surahs.length === 0) return;
+
+    let filtered = [...surahs];
+    if (searchQuery.trim() !== "") {
+      filtered = filtered.filter(
         (surah) =>
           surah.nama_latin.toLowerCase().includes(searchQuery.toLowerCase()) ||
           surah.arti.toLowerCase().includes(searchQuery.toLowerCase()) ||
           surah.nomor.toString().includes(searchQuery)
       );
-      setFilteredSurahs(filtered);
     }
-  }, [searchQuery, surahs]);
+
+    filtered.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortBy === "nomor") {
+        comparison = a.nomor - b.nomor;
+      } else if (sortBy === "jumlah_ayat") {
+        comparison = a.jumlah_ayat - b.jumlah_ayat;
+      } else if (sortBy === "nama_latin") {
+        comparison = a.nama_latin.localeCompare(b.nama_latin);
+      } else if (sortBy === "tempat_turun") {
+        comparison = a.tempat_turun.localeCompare(b.tempat_turun);
+      }
+
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+
+    setFilteredSurahs(filtered);
+  }, [searchQuery, surahs, sortBy, sortDirection]);
+
+  const handleSort = (option: SortOption) => {
+    console.log("Sorting by:", option, "Current sort:", sortBy, sortDirection);
+    if (sortBy === option) {
+      const newDirection = sortDirection === "asc" ? "desc" : "asc";
+      console.log("Toggling direction to:", newDirection);
+      setSortDirection(newDirection);
+    } else {
+      console.log("Setting new sort option:", option);
+      setSortBy(option);
+      setSortDirection("asc");
+    }
+  };
+
+  const getSortLabel = () => {
+    const labels = {
+      nomor: "Nomor Surah",
+      nama_latin: "Nama Surah",
+      tempat_turun: "Tempat Turun",
+      jumlah_ayat: "Jumlah Ayat",
+    };
+    return labels[sortBy];
+  };
 
   return (
     <div className="space-y-6">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 dark:text-slate-100 text-slate-950" />
-        <Input
-          className="pl-10 py-3 backdrop-blur-sm bg-background/30 border-primary/20 dark:border-white/10 hover:bg-background/40"
-          placeholder="Cari surah berdasarkan nama atau arti..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="relative flex-grow">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 dark:text-slate-100 text-slate-950" />
+          <Input
+            className="pl-10 py-3 backdrop-blur-sm bg-background/30 border-primary/20 dark:border-white/10 hover:bg-background/40"
+            placeholder="Cari surah berdasarkan nama atau arti..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="bg-background/20 backdrop-blur-sm border-primary/20 dark:border-white/30 hover:bg-background/30"
+              >
+                <SortAsc className="h-4 w-4 mr-2" />
+                Urut: {getSortLabel()} (
+                {sortDirection === "asc" ? "A-Z" : "Z-A"})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Urutkan Berdasarkan</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleSort("nomor")}>
+                Nomor Surah{" "}
+                {sortBy === "nomor" && (sortDirection === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("nama_latin")}>
+                Nama Surah{" "}
+                {sortBy === "nama_latin" &&
+                  (sortDirection === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("tempat_turun")}>
+                Tempat Turun{" "}
+                {sortBy === "tempat_turun" &&
+                  (sortDirection === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSort("jumlah_ayat")}>
+                Jumlah Ayat{" "}
+                {sortBy === "jumlah_ayat" &&
+                  (sortDirection === "asc" ? "↑" : "↓")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            variant="outline"
+            className="bg-background/20 backdrop-blur-sm border-primary/20 dark:border-white/30 hover:bg-background/30"
+            onClick={() => setShowPrayerTimes(true)}
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Waktu Sholat
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -114,6 +218,10 @@ export default function SurahList() {
               </Link>
             ))}
       </div>
+      <PrayerTimesModal
+        isOpen={showPrayerTimes}
+        onClose={() => setShowPrayerTimes(false)}
+      />
     </div>
   );
 }

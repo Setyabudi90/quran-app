@@ -1,6 +1,16 @@
-import { ChevronLeft, Pause, Play } from "lucide-react";
+import { ChevronLeft, Pause, Play, Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
+import { useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface SurahHeaderProps {
   surah: {
@@ -14,6 +24,11 @@ interface SurahHeaderProps {
   onToggleAudio: () => void;
   onSeekAudio: (time: number) => void;
   onGoBack: () => void;
+  displaySettings?: {
+    showTransliteration: boolean;
+    showTranslation: boolean;
+  };
+  onToggleSetting?: (setting: string) => void;
 }
 
 export default function surahHeader({
@@ -24,13 +39,13 @@ export default function surahHeader({
   onToggleAudio,
   onSeekAudio,
   onGoBack,
+  displaySettings,
+  onToggleSetting,
 }: SurahHeaderProps) {
-  const [prevScrollPos, setPrevScrollPos] = useState(0);
   const [visible, setVisible] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-
     const handleScroll = () => {
       const currentScrollPos = window.pageYOffset;
 
@@ -54,6 +69,10 @@ export default function surahHeader({
     return `${hours > 0 ? hours + ":" : ""}${
       hours > 0 ? String(minutes).padStart(2, "0") : minutes
     }:${String(seconds).padStart(2, "0")}`;
+  };
+
+  const goToQiblaCompass = () => {
+    router.push("/kompas/kiblat");
   };
 
   return (
@@ -96,6 +115,46 @@ export default function surahHeader({
                   <Play className="h-5 w-5" />
                 )}
               </Button>
+
+              {displaySettings && onToggleSetting && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-foreground"
+                    >
+                      <Settings className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Pengaturan Tampilan</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={displaySettings.showTransliteration}
+                      onCheckedChange={() => {
+                        console.log("Toggling transliteration from header");
+                        onToggleSetting("showTransliteration");
+                      }}
+                    >
+                      Tampilkan Transliterasi
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={displaySettings.showTranslation}
+                      onCheckedChange={() => {
+                        console.log("Toggling translation from header");
+                        onToggleSetting("showTranslation");
+                      }}
+                    >
+                      Tampilkan Terjemahan
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={goToQiblaCompass}>
+                      Kompas Kiblat
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               <div className="hidden md:flex items-center gap-2 w-64">
                 <span className="text-xs text-muted-foreground w-10">
